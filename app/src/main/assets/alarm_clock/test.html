@@ -1,0 +1,52 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <p>Current Time: <span id="currentTime"></span></p>
+    <input type="time" id="alarmTime" />
+    <button onclick="setAlarm();">Set Alarm</button>
+    <button onclick="alarmSound.pause()">Stop Alarm</button>
+    <script text="text/javascrip">
+        function currentTime() {
+            var date = new Date(); // Create a new Date object
+            var now = date.toLocaleString('en-US', { hour12: true }); // Format the date and time
+            // Update the HTML element with the current date and time to show UI HTML
+            document.getElementById('currentTime').innerHTML = now;
+        }
+
+        setInterval(currentTime, 1); // Call the currentTime function every 1 millisecond to continuously update the time
+
+        var alarmSound = new Audio("assets/sounds/Alarm_sound.mp3");
+
+        function setAlarm() {
+            //get value time from input html pass to varaible alarmTime
+            var alarmTime = document.getElementById('alarmTime').value;
+            var now = new Date();
+            //console.log("now", now);
+            var alarm = new Date(now.toDateString() + ' ' + alarmTime);
+            //console.log('alarm', alarm);
+
+            var timeRemaining = alarm - now;
+            //console.log('timeRemaining', timeRemaining);
+
+            //set out for setTimeout
+            setTimeout(playAlarm, timeRemaining); // Set a timeout to call the playAlarm function after the specified timeRemaining
+
+            document.getElementById('alarmTime').disabled = true; // for can't modify time when already set
+        }
+
+        function playAlarm() {
+            alarmSound.play();
+            document.getElementById('alarmTime').disabled = true;
+        }
+
+
+    </script>
+</body>
+
+</html>

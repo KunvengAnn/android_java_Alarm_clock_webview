@@ -1,0 +1,111 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Veng Ann</title>
+    <style>
+        .style-divParent {
+            display: flex;
+            justify-content: center;
+            /* Horizontally center the columns */
+        }
+
+        .style-margintop {
+            margin-top: 15%;
+        }
+
+        .style-divParent-no-marginTop {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* Vertically center the text within the container */
+            justify-content: center;
+            /* Horizontally center the columns */
+        }
+
+        .style-byA {
+            height: 30vw;
+            /* Set the height relative to viewport width */
+            width: 30vw;
+            /* Set the width relative to viewport width */
+            border: 2px solid blue;
+            border-radius: 50%;
+            background-image: url('assets/images/ann.jpg');
+            /* Set the image URL here */
+            background-size: cover;
+            background-position: center;
+            justify-content: center;
+            /* Horizontally center the content inside .style-byA */
+            align-items: center;
+            /* Vertically center the content inside .style-byA */
+            overflow: hidden;
+        }
+
+        .style-byB {
+            height: 10vw;
+            /* Set the height relative to viewport width */
+            width: 10vw;
+            /* Set the width relative to viewport width */
+            border: 2px solid blue;
+            border-radius: 50%;
+            background-image: url('assets/images/logo_facebook.jpg');
+            /* Set the image URL here */
+            background-size: cover;
+            background-position: center;
+            justify-content: center;
+            /* Horizontally center the content inside .style-byA */
+            align-items: center;
+            /* Vertically center the content inside .style-byA */
+            overflow: hidden;
+        }
+
+        .style-byC {
+            height: 10vw;
+            /* Set the height relative to viewport width */
+            width: 10vw;
+            /* Set the width relative to viewport width */
+            border: 2px solid blue;
+            border-radius: 50%;
+            background-image: url('assets/images/logo_instagram.jfif');
+            /* Set the image URL here */
+            background-size: cover;
+            background-position: center;
+            justify-content: center;
+            /* Horizontally center the content inside .style-byA */
+            align-items: center;
+            /* Vertically center the content inside .style-byA */
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body style="background-color: black;">
+    <div class="style-divParent style-margintop">
+        <!--div show profile-->
+        <div class="style-byA"> </div>
+    </div>
+    <div class="style-divParent-no-marginTop">
+        <span style="color: white; font-size: calc(3vw + 10px);">KUN VEN ANN</span>
+        <span style="color: grey; font-size: calc(2.5vw + 5px);">I'm a student</span>
+    </div>
+    <div class=" style-divParent" style="margin-top: 5%;">
+        <!--https://www.facebook.com/kunvengann-->
+        <a href="https://www.facebook.com/kunvengann" target="_blank"> <!-- Link to Google -->
+            <div class="style-byB"></div> <!-- Your clickable image or div -->
+        </a>
+        <a href="https://www.instagram.com/vengann/" target="_blank"> <!-- Link to Google -->
+            <div class="style-byC"> </div>
+        </a>
+    </div>
+
+    <div class="style-divParent-no-marginTop" style="margin-top: 5%; justify-content: center;">
+        <span style="color: white; font-size: 22px; text-align: center;">Hi, I'm a student at Thai Nguyen University of
+            Technology.Now I
+            learn at year four
+            in major Computer Science.
+        </span>
+    </div>
+</body>
+
+</html>
