@@ -1,29 +1,53 @@
 package com.example.clock_alarm_webview_app;
 
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.os.Bundle;
-import android.util.Log;
-import android.webkit.JavascriptInterface;
+import android.view.MenuItem;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.widget.Toast;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import androidx.appcompat.widget.Toolbar;
 
-public class MainActivity extends AppCompatActivity {
+import com.google.android.material.navigation.NavigationView;
+
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
     private WebView webView;
 
-    @SuppressLint("SetJavaScriptEnabled")
+    private DrawerLayout drawerLayout;
+    NavigationView navigationView;
+    Toolbar tool_bar;
+
+    @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface", "NonConstantResourceId"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //drawer tool bar
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
+        tool_bar = findViewById(R.id.toolbar);
+        //tool bar
+        setSupportActionBar(tool_bar);
+
+        //navigation drawer menu
+
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawerLayout, tool_bar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        navigationView.setNavigationItemSelectedListener(this);
+        navigationView.bringToFront();
+
+
+        //web view
         webView = findViewById(R.id.id_web_view);
         // config web view
         WebSettings webSettings = webView.getSettings();
@@ -39,54 +63,44 @@ public class MainActivity extends AppCompatActivity {
         WebAppInterface webAppInterface = new WebAppInterface(this); // 'this' refers to the current activity context
         webView.addJavascriptInterface(webAppInterface, "Android");
 
-        Log.d("alert", "hello");
+        //call it to check local storage
+        webAppInterface.checkLocalStorage();
+
+
     }
+
+    //for when click drawer
+    @Override
+    public boolean onNavigationItemSelected(MenuItem menuItem) {
+        String baseUrl = "file:///android_asset/";
+
+        if (menuItem.getItemId() == R.id.nav_Info_dev) {
+            String htmlFileName = "alarm_clock/about_developer.html";
+            String htmlPath = baseUrl + htmlFileName;
+            webView.loadUrl(htmlPath);
+        } else if (menuItem.getItemId() == R.id.nav_empty) {
+            Toast.makeText(this, "No data to see", Toast.LENGTH_LONG).show();
+        }
+
+        // Close the drawer after item selection
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
+    }
+
+
 
     // onBackPressed method
     @Override
     public void onBackPressed() {
-        if(webView !=null && webView.canGoBack()){
+        //webView Back Pressed for web view back
+        // drawerLayout Back Pressed for drawer back
+        if (webView != null && webView.canGoBack() || drawerLayout.isDrawerOpen(GravityCompat.START)) {
             webView.goBack();
-        }else{
+
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
             super.onBackPressed();
         }
     }
-
-    // Define a Java class to act as the interface between JavaScript and Android
-    public static class WebAppInterface {
-
-        Context mContext;
-
-        WebAppInterface(Context context) {
-            mContext = context;
-        }
-
-        // Method to receive alarms array from JavaScript as a JSON string
-        @JavascriptInterface
-        public void receiveAlarms(String alarmsJSON) {
-            try {
-                Log.d("data 1", "data"+alarmsJSON);
-                // Convert the JSON string to a Java array or perform operations as needed
-                JSONArray jsonArray = new JSONArray(alarmsJSON);
-
-                Log.d("json 1", "json"+jsonArray);
-                // Process the received alarms array in your Java code
-                for (int i = 0; i < jsonArray.length(); i++) {
-                    JSONObject alarmObject = jsonArray.getJSONObject(i);
-
-                    // Retrieve properties of each alarm object
-                    String id = alarmObject.getString("id");
-                    Log.d("obj id", "json"+id);
-
-                    String timeAlarm = alarmObject.getString("timeAlarm");
-                    Log.d("obj timeAlarm", "json"+timeAlarm);
-
-                    boolean exists = alarmObject.getBoolean("isActive");
-                    Log.d("obj exists", "json"+exists);
-                }
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 }
+

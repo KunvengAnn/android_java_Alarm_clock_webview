@@ -237,7 +237,7 @@
 
 <body>
 
-<div class="row">
+<!-- <div class="row">
     <div class="col-12 custom_header" id="btn_content" onclick="toggleContent()">
         <div class="custom_style_center">
             <div>
@@ -247,10 +247,14 @@
         </div>
     </div>
     <div class="custom_hide_content" id="additionalContent" style="display: none;">
-        <div><a href="about_developer.html" style="color: blue;"><span style="font-size: medium;">About
-                        Devolper</span></a></div>
+        <div>
+            <a href="about_developer.html" onclick="loadContent(event, 'content')" style="color: blue;">
+                <span style="font-size: medium;">About Developer</span>
+            </a>
+        </div>
+        <div id="content" class="hideDivAlarm"></div>
     </div>
-</div>
+</div> -->
 
 <!--content-->
 <div class="clock-container" id="clockContainer">
@@ -562,10 +566,18 @@
             window.Android.receiveAlarms(alarmsJSON);
         }
 
-        // Polling mechanism to check for changes every 2 seconds
-        setInterval(sendAlarmsToAndroid, 2000); // Modify the interval according to your needs
+        function checkifAlarmArraynull() {
+            // Check if alarmsArray is not empty or not null before setting the interval
+            if (alarmsArray && alarmsArray.length > 0) {
+                // Call function sendAlarmsToAndroid immediately and then at intervals of 2 seconds
+                sendAlarmsToAndroid(); // Initially send Android
+            }
+        }
+        //call checkifAlarmArraynull every 2 second
+        setInterval(() => {
+            checkifAlarmArraynull();
+        }, 2000);
 
-        sendAlarmsToAndroid();
     </script>
 </body>
 
