@@ -175,6 +175,7 @@
             appearance: none;
             height: 2em;
             width: 3.75em;
+            min-width: 3.72em;
             background-color: #e2e2ec;
             border-radius: 1.25em;
             position: relative;
@@ -552,6 +553,9 @@
                 //call funcitoin diplay again
                 displayAlarms();
 
+                // Send the deleted alarm ID (searchId) to Android for delete local storage sharedPrefereces
+                window.Android.deleteAlarmFromLocalStorage(searchId); // This sends the ID to the Android app
+
                 // Hide the alarm container if there are no more alarms
                 if (alarmsArray.length === 0) { //if alarmArray =0 hide div
                     divcontenthide.classList.add('hideDivAlarm');
@@ -559,13 +563,124 @@
             }
         };
 
+        function setDataFromAndroid(storedAlarmsJSON) {
+            try {
+                //this just test
+                //Display the received data in a div with increased font size and other styles
+                // const receivedDataDiv = document.createElement("div");
+                // receivedDataDiv.textContent = storedAlarmsJSON;
+                // receivedDataDiv.style.fontSize = "18px";
+                // receivedDataDiv.style.fontFamily = "Arial, sans-serif";
+                // receivedDataDiv.style.padding = "10px";
+                // receivedDataDiv.style.border = "1px solid #ccc";
+                // receivedDataDiv.style.borderRadius = "5px";
+                // receivedDataDiv.style.marginTop = "20px";
+                // receivedDataDiv.style.backgroundColor = "#f9f9f9";
+                // receivedDataDiv.style.overflow = "auto";
+                // receivedDataDiv.style.maxHeight = "300px"; // Set maximum height with scrolling
+                // document.body.appendChild(receivedDataDiv);
+
+                const storedAlarms = JSON.parse(storedAlarmsJSON);
+
+                if (Array.isArray(storedAlarms) && storedAlarms.length > 0) {
+                    // Check if the ID already exists in alarmsArray
+                    const existingAlarmIndex = alarmsArray.findIndex(a => a.id === alarm.id);
+
+                    //if id is not exists add it to alarmArray
+                    if (existingAlarmIndex === -1) {
+                        storedAlarms.forEach(alarm => {
+                            const newAlarm = {
+                                id: alarm.id,
+                                timeAlarm: alarm.timeAlarm,
+                                isActive: alarm.isActive
+                            };
+                            // Assuming alarmsArray is defined globally or in the scope where it can be accessed
+                            alarmsArray.push(newAlarm);
+                        });
+                    }
+
+                    // Perform any necessary actions with the updated alarmsArray
+                    console.log("Updated alarms:", alarmsArray);
+
+                    // Call a function to display or handle the alarms
+                    displayAlarmsOnLoad();
+                } else {
+                    console.error('Received alarm data is not in the expected format or is empty.');
+                }
+            } catch (error) {
+                console.error('Error occurred while processing received alarm data:', error);
+            }
+        }
+
+
+        // Call setDataFromAndroid to get local storage from android java
+        setDataFromAndroid();
+
+        //this for load alarm when arrayAlarm has data
+        // Function to create an alarm div based on alarm object
+        function createAlarmFirstLoad(alarmObj) {
+            // Keys from object
+            const { id, timeAlarm, isActive } = alarmObj;
+
+            // Alarm div
+            let alarmDiv = document.createElement("div");
+            alarmDiv.classList.add("alarm");
+            alarmDiv.setAttribute("data-id", id);
+            alarmDiv.innerHTML = `<span>${timeAlarm}</span>`;
+
+            // Checkbox
+            let checkbox = document.createElement("input");
+            checkbox.setAttribute("type", "checkbox");
+
+            // Set the initial state of the checkbox based on isActive
+            checkbox.checked = isActive;
+
+            checkbox.addEventListener("click", (e) => {
+                if (e.target.checked) {
+                    startAlarm(e);
+                } else {
+                    stopAlarm(e);
+                }
+            });
+
+            alarmDiv.appendChild(checkbox);
+
+            // Delete button
+            let deleteButton = document.createElement("button");
+            deleteButton.innerHTML = `Delete`;
+            deleteButton.classList.add("deleteButton");
+            deleteButton.addEventListener("click", (e) => deleteAlarm(e));
+            alarmDiv.appendChild(deleteButton);
+
+            // Append the new alarm to the list of alarms
+            activeAlarms.appendChild(alarmDiv);
+        };
+
+
+
+
+        // Function to display alarms on page load when save local storage android send js
+        function displayAlarmsOnLoad() {
+            // Loop through alarmsArray and create alarm divs for each alarm object
+            document.getElementById('alarmlist_hide').classList.remove('hideDivAlarm');
+            alarmsArray.forEach(alarmObj => {
+                createAlarmFirstLoad(alarmObj);
+            });
+        }
+
+
+
         // Function to send alarms data to Android
         function sendAlarmsToAndroid() {
             var alarmsJSON = JSON.stringify(alarmsArray);
-            console.log('json' + alarmsJSON);
+            // console.log('json' + alarmsJSON);
+
+            //this window for send data to java webview
+            //Android can change to differece you i want
             window.Android.receiveAlarms(alarmsJSON);
         }
 
+        //
         function checkifAlarmArraynull() {
             // Check if alarmsArray is not empty or not null before setting the interval
             if (alarmsArray && alarmsArray.length > 0) {
@@ -573,6 +688,7 @@
                 sendAlarmsToAndroid(); // Initially send Android
             }
         }
+
         //call checkifAlarmArraynull every 2 second
         setInterval(() => {
             checkifAlarmArraynull();
