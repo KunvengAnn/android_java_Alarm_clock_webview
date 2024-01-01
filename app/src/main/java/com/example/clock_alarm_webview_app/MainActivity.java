@@ -4,15 +4,23 @@ import static android.preference.PreferenceManager.getDefaultSharedPreferences;
 
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import android.annotation.SuppressLint;
+import android.app.AlarmManager;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.MenuItem;
 import android.webkit.JavascriptInterface;
@@ -29,9 +37,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
@@ -41,8 +50,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private DrawerLayout drawerLayout;
     NavigationView navigationView;
     Toolbar tool_bar;
-
     private SharedPreferences sharedPreferences;
+
+
+    //for Alarm Notification
+    private static final String ALARM_PREF_KEY = "alarm_time";
+    private static final int ALARM_REQUEST_CODE = 123;
+    private static final String CHANNEL_ID = "alarm_channel";
+    private BroadcastReceiver alarmReceiver;
+
 
     @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface", "NonConstantResourceId"})
     @Override
@@ -91,17 +107,117 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         String baseUrl = "file:///android_asset/";
         String htmlPath = baseUrl + htmlFileName;
 
+        // Initialize sharedPreferences
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
         // bind it to the WebView for javaScript receive data from javaScript
         webView.addJavascriptInterface(MainActivity.this, "Android");
 
-
         webView.loadUrl(htmlPath);
+
+
+
+        // Create notification channel (for Android Oreo and above)
+        createNotificationChannel();
+
+        // Check if an alarm is active and retrieve its timeAlarm
+        String timeAlarm = getActiveAlarmTime();
+
+        // Set or update the alarm time only if it is active
+        if (timeAlarm != null) {
+            setAlarmTime(timeAlarm);
+        } else {
+            // No active alarm found, handle it as per your app logic
+            Log.d("AlarmInfo", "No active alarm found");
+        }
     }
+
+    // Method to check if an alarm is active and retrieve its timeAlarm
+    private String getActiveAlarmTime() {
+        // Loop through SharedPreferences to find an active alarm
+        Map<String, ?> allAlarms = sharedPreferences.getAll();
+        for (Map.Entry<String, ?> entry : allAlarms.entrySet()) {
+            try {
+                JSONObject alarmObj = new JSONObject(entry.getValue().toString());
+                boolean isActive = alarmObj.optBoolean("isActive", false);
+                if (isActive) {
+                    return alarmObj.optString("timeAlarm");
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return null; // Return null if no active alarm is found
+    }
+
+    private void setAlarmTime(String time) {
+        // Save the alarm time to SharedPreferences
+        SharedPreferences preferences = getSharedPreferences("AlarmPrefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putString(ALARM_PREF_KEY, time);
+        editor.apply();
+
+        // Schedule the alarm with AlarmManager
+        scheduleAlarm(getApplicationContext(), time);
+    }
+
+    private void scheduleAlarm(Context applicationContext, String time) {
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
+        Intent intent = new Intent(this, AlarmReceiver.class);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, ALARM_REQUEST_CODE, intent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
+        try {
+            Date alarmDate = sdf.parse(time);
+            long triggerTime = alarmDate.getTime();
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
+            } else {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "Alarm Channel";
+            String description = "Channel for alarm notifications";
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    private String getCurrentTime() {
+        SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
+        return sdf.format(new Date());
+    }
+
+    void showNotification(String message) {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.alarm_icon)
+                .setContentTitle("Alarm Notification")
+                .setContentText(message)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true);
+
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        notificationManager.notify(ALARM_REQUEST_CODE, builder.build());
+    }
+
 
     //method for receive id deleted selected data from javaScript
     @JavascriptInterface
-    public  void deleteAlarmFromLocalStorage(String searchId){
+    public void deleteAlarmFromLocalStorage(String searchId) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.remove("alarm_" + searchId);
@@ -114,11 +230,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     //this receive data from list alarmArray from javaScript
     @JavascriptInterface
     public void receiveAlarms(String alarmsJSON) {
-        // Retrieve the stored alarms from SharedPreferences
-        Map<String, ?> allAlarms = getDefaultSharedPreferences(MainActivity.this).getAll();
-
         try {
             Log.d("data 1", "data" + alarmsJSON);
+
+            // Retrieve the stored alarms from SharedPreferences
+            SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+            Map<String, ?> allAlarms = sharedPreferences.getAll();
 
             // Convert the JSON string to a JSONArray
             JSONArray jsonArray = new JSONArray(alarmsJSON);
@@ -134,7 +251,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 String id = alarmObject.getString("id");
 
                 // Check if the alarm already exists in SharedPreferences
-                if (!sharedPreferences.contains("alarm_" + id)) {
+                if (!allAlarms.containsKey("alarm_" + id)) {
                     String timeAlarm = alarmObject.getString("timeAlarm");
                     boolean isActive = alarmObject.getBoolean("isActive");
 
@@ -152,14 +269,66 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
             // (Optional) Log the stored alarms
             for (String key : sharedPreferences.getAll().keySet()) {
-                Log.d("Stored alarm11", key + ": " + sharedPreferences.getString(key, ""));
+                Log.d("Stored alarm", key + ": " + sharedPreferences.getString(key, ""));
             }
-
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
 
+    @JavascriptInterface
+    public void checkAlarm(boolean isAlarmReceiveFromJS, String timeAlarm) {
+        Log.d("alarmBoolean", "checkAlarm: " + isAlarmReceiveFromJS + timeAlarm);
+        if (isAlarmReceiveFromJS) {
+                showNotification("Alarm triggered for " + timeAlarm);
+        } else {
+            cancelNotification(MainActivity.this,1);
+        }
+    }
+
+
+    // Method to cancel or hide the notification
+    // Method to cancel or hide the notification
+    private void cancelNotification(Context context, int notificationId) {
+        try {
+            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+            notificationManager.cancel(notificationId);
+            Log.d("close notification", "Notification with ID " + notificationId + " closed");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    //receive from js for update local storage Active or not
+    @JavascriptInterface
+    public void checkActiveAlarm(boolean isActive, String searchId) {
+        Log.d("isActive", "active: "+isActive+searchId);
+        // Retrieve the stored alarms from SharedPreferences
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+        Map<String, ?> allAlarms = sharedPreferences.getAll();
+
+        // Check if the alarm already exists in SharedPreferences
+        if (allAlarms.containsKey("alarm_" + searchId)) {
+            // Get the alarm's current data
+            String alarmData = sharedPreferences.getString("alarm_" + searchId, "");
+
+            try {
+                // Convert the stored JSON string to a JSONObject
+                JSONObject alarmObject = new JSONObject(alarmData);
+
+                // Update the isActive status
+                alarmObject.put("isActive", isActive);
+
+                // Update the alarm with the modified isActive status in SharedPreferences
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.putString("alarm_" + searchId, alarmObject.toString());
+                editor.apply();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
 
     @Override
@@ -177,10 +346,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.apply();
     }
+
     @Override
     protected void onResume() {
         super.onResume();
         //functionGetLocalStorageSendToJavaScript();
+
+        // Check if it's time to trigger the alarm when the app resumes
+        String savedAlarmTime = sharedPreferences.getString(ALARM_PREF_KEY, "");
+        String currentTime = getCurrentTime();
+
+        if (savedAlarmTime.equals(currentTime)) {
+            showNotification("Alarm triggered for " + savedAlarmTime);
+        }
     }
 
 
@@ -190,7 +368,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         functionGetLocalStorageSendToJavaScript();
     }
 
-    public  void functionGetLocalStorageSendToJavaScript(){
+    public void functionGetLocalStorageSendToJavaScript() {
         // Retrieve the stored alarms from SharedPreferences
         Map<String, ?> allAlarms = getDefaultSharedPreferences(MainActivity.this).getAll();
 
@@ -223,30 +401,33 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     //for when click drawer
     @Override
     public boolean onNavigationItemSelected(MenuItem menuItem) {
-        if (menuItem.getItemId() == R.id.nav_Info_dev) {
-            Intent i = new Intent(MainActivity.this, About_develop.class);
-            startActivity(i);
+        int itemId = menuItem.getItemId();
+        if (itemId == R.id.nav_Info_dev) {
+            //Load HTML content
+            String htmlFileName = "alarm_clock/about_developer.html";
+            String baseUrl = "file:///android_asset/";
+            String htmlPath = baseUrl + htmlFileName;
+            webView.loadUrl(htmlPath);
+            drawerLayout.closeDrawer(GravityCompat.START);
             return true; // Return true after starting the activity to indicate that the item selection is handled
-        } else if (menuItem.getItemId() == R.id.nav_empty) {
+        } else if (itemId == R.id.nav_empty) {
             Toast.makeText(this, "No data to see", Toast.LENGTH_LONG).show();
+            drawerLayout.closeDrawer(GravityCompat.START);
+            return true;
         }
-
-        // Close the drawer after item selection
-        drawerLayout.closeDrawer(GravityCompat.START);
-        return true;
+        return super.onOptionsItemSelected(menuItem);
     }
-
 
 
     // onBackPressed method
     @Override
     public void onBackPressed() {
-        //webView Back Pressed for web view back
-        // drawerLayout Back Pressed for drawer back
-        if (webView != null && webView.canGoBack() || drawerLayout.isDrawerOpen(GravityCompat.START)) {
-            webView.goBack();
-
+        // Check if the navigation drawer is open and close it if back is pressed
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
             drawerLayout.closeDrawer(GravityCompat.START);
+        } else if (webView != null && webView.canGoBack()) {
+            // Check if WebView can go back
+            webView.goBack();
         } else {
             super.onBackPressed();
         }

@@ -332,6 +332,10 @@
         const Time_Alarm = document.getElementById("id_timeAlarm");
         const resetAlarm = document.getElementById('id_reset');
 
+
+        //global variable send to android alarm or  not for show notification android
+        var isAlarmSendAndroid = false;
+
         //Click on button reset //clear time
         resetAlarm.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -363,7 +367,7 @@
             const now = new Date();
             const timerealtime = now.toLocaleTimeString('en-US');
             // Extracting hours
-            //spit 1:10 pm get only hours
+            //spit example 1:10 pm get only hours
             const [hoursString, minutesSeconds] = timerealtime.split(':');
             const [hours] = hoursString.split(' '); //only hour
 
@@ -402,6 +406,11 @@
 
                         //show image blink when alarm
                         imageshow.classList.add('blinkingImage');
+
+                        //isAlarmSendAndroid set is true
+                        isAlarmSendAndroid = true;
+                        //get varaible isAlarmSendAndroid send to android java
+                        window.Android.checkAlarm(isAlarmSendAndroid, alarm.timeAlarm);
                     }
                 }
             });
@@ -432,6 +441,32 @@
         // // Check if the 'value' is less than 10
         // // If 'value' is less than 10, concatenate '0' in front of 'value'
         const appendZero = (value) => (value < 10 ? "0" + value : value);
+
+        //Stop alarm
+        const stopAlarm = (e) => {
+            let searchId = e.target.parentElement.getAttribute("data-id");
+            let [exists, obj, index] = searchObject("id", searchId);
+
+            console.log('close alarm' + searchId);
+            if (exists) {
+                console.log('close ok');
+                alarmsArray[index].isActive = false;
+                alarmSound.pause();
+
+                //Hide image Blink when alarm sound close
+                imageshow.classList.remove('blinkingImage');
+
+                //isAlarmSendAndroid set is true
+                isAlarmSendAndroid = false;
+                //get varaible isAlarmSendAndroid send to android java
+                //send two parameter to android
+                window.Android.checkAlarm(isAlarmSendAndroid, obj.timeAlarm);
+
+
+                //send more to android
+                window.Android.checkActiveAlarm(isActive = false, searchId);
+            }
+        };
 
         // Create alarm div
         const createAlarm = (alarmObj) => {
@@ -515,33 +550,21 @@
             }
         });
 
-
         //Start Alarm
         const startAlarm = (e) => {
             let searchId = e.target.parentElement.getAttribute("data-id");
             let [exists, obj, index] = searchObject("id", searchId);
             if (exists) {
                 alarmsArray[index].isActive = true;
-            }
-        };
 
-        //Stop alarm
-        const stopAlarm = (e) => {
-            let searchId = e.target.parentElement.getAttribute("data-id");
-            let [exists, obj, index] = searchObject("id", searchId);
-            console.log('close alarm' + searchId);
-            if (exists) {
-                console.log('close ok');
-                alarmsArray[index].isActive = false;
-                alarmSound.pause();
-
-                //Hide image Blink when alarm sound close
-                imageshow.classList.remove('blinkingImage');
+                //send more to android
+                window.Android.checkActiveAlarm(isActive = true, searchId);
             }
         };
 
         // Updated deleteAlarm function
         const deleteAlarm = (e) => {
+            // seleted id currect click it on index item for delete
             let searchId = e.target.parentElement.getAttribute("data-id");
             let [exists, obj, index] = searchObject("id", searchId);
             //alert(searchId);
