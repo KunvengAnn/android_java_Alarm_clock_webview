@@ -115,103 +115,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         webView.loadUrl(htmlPath);
 
-
-
-        // Create notification channel (for Android Oreo and above)
-        createNotificationChannel();
-
-        // Check if an alarm is active and retrieve its timeAlarm
-        String timeAlarm = getActiveAlarmTime();
-
-        // Set or update the alarm time only if it is active
-        if (timeAlarm != null) {
-            setAlarmTime(timeAlarm);
-        } else {
-            // No active alarm found, handle it as per your app logic
-            Log.d("AlarmInfo", "No active alarm found");
-        }
-    }
-
-    // Method to check if an alarm is active and retrieve its timeAlarm
-    private String getActiveAlarmTime() {
-        // Loop through SharedPreferences to find an active alarm
-        Map<String, ?> allAlarms = sharedPreferences.getAll();
-        for (Map.Entry<String, ?> entry : allAlarms.entrySet()) {
-            try {
-                JSONObject alarmObj = new JSONObject(entry.getValue().toString());
-                boolean isActive = alarmObj.optBoolean("isActive", false);
-                if (isActive) {
-                    return alarmObj.optString("timeAlarm");
-                }
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-        return null; // Return null if no active alarm is found
-    }
-
-    private void setAlarmTime(String time) {
-        // Save the alarm time to SharedPreferences
-        SharedPreferences preferences = getSharedPreferences("AlarmPrefs", MODE_PRIVATE);
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putString(ALARM_PREF_KEY, time);
-        editor.apply();
-
-        // Schedule the alarm with AlarmManager
-        scheduleAlarm(getApplicationContext(), time);
-    }
-
-    private void scheduleAlarm(Context applicationContext, String time) {
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-
-        Intent intent = new Intent(this, AlarmReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, ALARM_REQUEST_CODE, intent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
-        SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
-        try {
-            Date alarmDate = sdf.parse(time);
-            long triggerTime = alarmDate.getTime();
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
-            } else {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent);
-            }
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = "Alarm Channel";
-            String description = "Channel for alarm notifications";
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-            channel.setDescription(description);
-
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
-        }
-    }
-
-    private String getCurrentTime() {
-        SimpleDateFormat sdf = new SimpleDateFormat("h:mm a", Locale.getDefault());
-        return sdf.format(new Date());
-    }
-
-    void showNotification(String message) {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.alarm_icon)
-                .setContentTitle("Alarm Notification")
-                .setContentText(message)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setAutoCancel(true);
-
-        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
-        notificationManager.notify(ALARM_REQUEST_CODE, builder.build());
     }
 
 
@@ -276,34 +179,32 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
+    //Method Receive from JS check
     @JavascriptInterface
     public void checkAlarm(boolean isAlarmReceiveFromJS, String timeAlarm) {
         Log.d("alarmBoolean", "checkAlarm: " + isAlarmReceiveFromJS + timeAlarm);
         if (isAlarmReceiveFromJS) {
-                showNotification("Alarm triggered for " + timeAlarm);
+             showNotification("Alarm triggered for " + timeAlarm,1);
+            //AlarmReceiver.createNotification(this,timeAlarm);
         } else {
-            cancelNotification(MainActivity.this,1);
+            cancelNotification(MainActivity.this, 1);
         }
     }
 
 
-    // Method to cancel or hide the notification
+    public void showNotification(String message, int notificationId) {
+        NotificationHelper.createNotification(this, "Alarm Clock", message, notificationId);
+    }
+
     // Method to cancel or hide the notification
     private void cancelNotification(Context context, int notificationId) {
-        try {
-            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-            notificationManager.cancel(notificationId);
-            Log.d("close notification", "Notification with ID " + notificationId + " closed");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        NotificationHelper.cancelNotification(context, notificationId);
     }
-
 
     //receive from js for update local storage Active or not
     @JavascriptInterface
     public void checkActiveAlarm(boolean isActive, String searchId) {
-        Log.d("isActive", "active: "+isActive+searchId);
+        Log.d("isActive", "active: " + isActive + searchId);
         // Retrieve the stored alarms from SharedPreferences
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
         Map<String, ?> allAlarms = sharedPreferences.getAll();
@@ -330,7 +231,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-
     @Override
     protected void onPause() {
         super.onPause();
@@ -352,13 +252,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         super.onResume();
         //functionGetLocalStorageSendToJavaScript();
 
-        // Check if it's time to trigger the alarm when the app resumes
-        String savedAlarmTime = sharedPreferences.getString(ALARM_PREF_KEY, "");
-        String currentTime = getCurrentTime();
-
-        if (savedAlarmTime.equals(currentTime)) {
-            showNotification("Alarm triggered for " + savedAlarmTime);
-        }
+//        // Check if it's time to trigger the alarm when the app resumes
+//        String savedAlarmTime = sharedPreferences.getString(ALARM_PREF_KEY, "");
+//        String currentTime = getCurrentTime();
+//
+//        if (savedAlarmTime.equals(currentTime)) {
+//            showNotification("Alarm triggered for " + savedAlarmTime);
+//        }
     }
 
 
@@ -367,6 +267,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         super.onStart();
         functionGetLocalStorageSendToJavaScript();
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+    }
+
 
     public void functionGetLocalStorageSendToJavaScript() {
         // Retrieve the stored alarms from SharedPreferences
